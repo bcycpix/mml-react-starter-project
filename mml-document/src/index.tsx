@@ -1,75 +1,31 @@
+// App.tsx
 import * as React from "react";
-import { useEffect, useState } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
-
-import Dice from "./Dice";
-import Labels from "./Labels";
+import { useState } from "react";
 import Light from "./Light";
 
 function App() {
-  const [connectedClients, setConnectedClients] = useState(0);
-  const [diceClickCount, setDiceClickCount] = useState(0);
-  const [totalUptimeSeconds, setTotalUptimeSeconds] = useState(0);
+  const [cubeColor, setCubeColor] = useState<"red" | "yellow">("red");
 
-  const onDiceClick = () => {
-    setDiceClickCount((n) => n + 1);
-  };
-
-  const updateUptimeLabel = () => {
-    // Get total document uptime
-    // NOTE: document.timeline.currentTime reports uptime in ms
-    if (!document.timeline.currentTime) return;
-    setTotalUptimeSeconds(
-      Math.floor((document.timeline.currentTime as number) / 1000),
-    );
-  };
-
-  useEffect(() => {
-    updateUptimeLabel();
-    const intervalId = setInterval(updateUptimeLabel, 1000);
-
-    window.addEventListener("connected", () => {
-      setConnectedClients((n) => n + 1);
-    });
-    window.addEventListener("disconnected", () => {
-      setConnectedClients((n) => n - 1);
-    });
-
-    return () => {
-      clearInterval(intervalId);
-
-      window.removeEventListener("connected", () => {
-        setConnectedClients((n) => n + 1);
-      });
-      window.removeEventListener("disconnected", () => {
-        setConnectedClients((n) => n - 1);
-      });
-    };
-  }, []);
-
-  const uptimeMinutes = Math.floor(totalUptimeSeconds / 60);
-  const uptimeSeconds = totalUptimeSeconds - uptimeMinutes * 60;
-  const uptimeLabelText =
-    uptimeMinutes > 0
-      ? `${uptimeMinutes}:${String(uptimeSeconds).padStart(2, "0")}`
-      : `${uptimeSeconds}s`;
+  function handleCubeClick() {
+    setCubeColor(cubeColor === "red" ? "yellow" : "red");
+  }
 
   return (
     <>
       <Light />
-      <Labels
-        connectedText={`Connected clients: ${connectedClients}`}
-        rollsText={`Dice clicks: ${diceClickCount}`}
-        uptimeText={`Uptime: ${uptimeLabelText}`}
+      <m-cube
+        onClick={handleCubeClick}
+        x={-4}
+        y={5}
+        z={3}
+        width={1}
+        height={2}
+        depth={1}
+        ry={10}
+        color={cubeColor}
       />
-      <Dice onClick={onDiceClick} />
+      <m-sphere x={0} y={5} z={3} radius={1} color="green" />
+      <m-cylinder x="4" y="5" z="3" radius="0.5" height="2" color="blue" />
     </>
   );
 }
-
-const container = document.getElementById("root")!;
-const root = createRoot(container);
-flushSync(() => {
-  root.render(<App />);
-});
