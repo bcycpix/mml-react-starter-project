@@ -1,75 +1,81 @@
-import * as React from "react";
-import { useEffect, useState } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { MCubeElement, MMLCollisionStartEvent } from "@mml-io/mml-react-types";
 
-import Dice from "./Dice";
-import Labels from "./Labels";
-import Light from "./Light";
+import React, { useEffect, useRef, useState } from "react";
 
-function App() {
-  const [connectedClients, setConnectedClients] = useState(0);
-  const [diceClickCount, setDiceClickCount] = useState(0);
-  const [totalUptimeSeconds, setTotalUptimeSeconds] = useState(0);
+type Position = { x: number; y: number; z: number };
 
-  const onDiceClick = () => {
-    setDiceClickCount((n) => n + 1);
-  };
+export default function CollisionReactExample() {
+  const platformRef = useRef<MCubeElement>(null);
+  const [users, setUsers] = useState(new Map());
 
-  const updateUptimeLabel = () => {
-    // Get total document uptime
-    // NOTE: document.timeline.currentTime reports uptime in ms
-    if (!document.timeline.currentTime) return;
-    setTotalUptimeSeconds(
-      Math.floor((document.timeline.currentTime as number) / 1000),
-    );
-  };
+  function handleCollisionstart(e: MMLCollisionStartEvent) {
+    const { connectionId, position } = e.detail;
+
+    const newUser = createUser(connectionId, position);
+
+    if (!newUser) return;
+
+    setUsers((oldUsers) => {
+      return new Map(oldUsers).set(connectionId, newUser);
+    });
+  }
+
+  function createUser(connectionId: number, position: Position) {
+    const user = users.get(connectionId);
+
+    if (user) {
+      return;
+    }
+
+    const newUser = {
+      color: `#${Math.floor(Math.random() * 0xffffff).toString(16)}`,
+      position: {
+        x: position.x * 2,
+        z: position.z * 2,
+      },
+    };
+
+    return newUser;
+  }
 
   useEffect(() => {
-    updateUptimeLabel();
-    const intervalId = setInterval(updateUptimeLabel, 1000);
+    const platform = platformRef.current;
 
-    window.addEventListener("connected", () => {
-      setConnectedClients((n) => n + 1);
-    });
-    window.addEventListener("disconnected", () => {
-      setConnectedClients((n) => n - 1);
-    });
+    platform?.addEventListener("collisionstart", handleCollisionstart);
 
     return () => {
-      clearInterval(intervalId);
-
-      window.removeEventListener("connected", () => {
-        setConnectedClients((n) => n + 1);
-      });
-      window.removeEventListener("disconnected", () => {
-        setConnectedClients((n) => n - 1);
-      });
+      platform?.removeEventListener("collisionstart", handleCollisionstart);
     };
   }, []);
 
-  const uptimeMinutes = Math.floor(totalUptimeSeconds / 60);
-  const uptimeSeconds = totalUptimeSeconds - uptimeMinutes * 60;
-  const uptimeLabelText =
-    uptimeMinutes > 0
-      ? `${uptimeMinutes}:${String(uptimeSeconds).padStart(2, "0")}`
-      : `${uptimeSeconds}s`;
-
   return (
-    <>
-      <Light />
-      <Labels
-        connectedText={`Connected clients: ${connectedClients}`}
-        rollsText={`Dice clicks: ${diceClickCount}`}
-        uptimeText={`Uptime: ${uptimeLabelText}`}
-      />
-      <Dice onClick={onDiceClick} />
-    </>
+    <m-group>
+      <m-cube id="users-panel" height="6" width="12" depth="0.1" y="4" z="-2">
+        <m-group rx="90" id="user-presence-holder">
+          {[...users.entries()].map(([connectionId, cubeData]) => (
+            <m-cube
+              key={connectionId}
+              collide={false}
+              width="0.25"
+              height="0.25"
+              depth="0.25"
+              y={0.25}
+              position={cubeData.position}
+              color={cubeData.color}
+            />
+          ))}
+        </m-group>
+      </m-cube>
+      <m-cube
+        id="platform"
+        ref={platformRef}
+        y="0.05"
+        height="0.1"
+        width="6"
+        depth="3"
+        color="green"
+        collision-interval="100"
+      ></m-cube>
+    </m-group>
   );
 }
-
-const container = document.getElementById("root")!;
-const root = createRoot(container);
-flushSync(() => {
-  root.render(<App />);
-});
